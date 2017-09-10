@@ -18,28 +18,31 @@ class Client(val name: String, val phoneNumber: Int) {
     }
 }
 
-abstract class ReservationEvent(val client: Client) {
+abstract class ReservationEvent(val client: Client, val restaurant: Restaurant) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is ReservationEvent) return false
 
         if (client != other.client) return false
+        if (restaurant != other.restaurant) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        return client.hashCode()
+        var result = client.hashCode()
+        result = 31 * result + restaurant.hashCode()
+        return result
     }
 }
 
-class BookEvent(client: Client, val numberOfGuests: Int, val restaurant: Restaurant) : ReservationEvent(client) {
+class BookEvent(client: Client, val numberOfGuests: Int, restaurant: Restaurant) : ReservationEvent(client, restaurant) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is BookEvent) return false
         if (!super.equals(other)) return false
 
-        if (numberOfGuests != other.numberOfGuests) return false
+//        if (numberOfGuests != other.numberOfGuests) return false
         if (restaurant != other.restaurant) return false
 
         return true
@@ -53,41 +56,43 @@ class BookEvent(client: Client, val numberOfGuests: Int, val restaurant: Restaur
     }
 }
 
-class CancelEvent(client: Client) : ReservationEvent(client)
+class CancelEvent(client: Client, restaurant: Restaurant) : ReservationEvent(client, restaurant)
+
 class ReservationCenter(val restaurants: List<Restaurant>) {
     val events: MutableMap<Restaurant, MutableList<ReservationEvent>> = mutableMapOf()
 
     fun makeReservation(client: Client, numberOfGuests: Int, restaurant: Restaurant): Boolean {
-        if (numberOfGuests + countReservation(events[restaurant]) <= restaurant.capacity) {
+        if (!restaurants.contains(restaurant))
+            throw IllegalArgumentException("%s is not in the restaurants list".format(restaurant))
+
+        if (numberOfGuests + countReservation(restaurant) <= restaurant.capacity) {
             if (events[restaurant] == null) {
                 val e = mutableListOf<ReservationEvent>()
                 events.put(restaurant, e)
             }
-            val restaurantEvents : MutableList<ReservationEvent>? = events[restaurant]
+            val restaurantEvents: MutableList<ReservationEvent>? = events[restaurant]
             restaurantEvents?.add(BookEvent(client, numberOfGuests, restaurant))
             return true
         }
         return false
     }
 
-    private fun countReservation(restaurantsEvents: List<ReservationEvent>?): Int {
+    fun countReservation(restaurant: Restaurant): Int {
         var currentGuests = 0
-        for (event in restaurantsEvents ?: listOf()) {
+        for (event in events[restaurant] ?: listOf<ReservationEvent>()) {
             if (event is BookEvent)
                 currentGuests += event.numberOfGuests
             else if (event is CancelEvent) {
-                val initialBookingEvent = restaurantsEvents!!.first { it.client == event.client && it is BookEvent } as BookEvent
+                val initialBookingEvent = events[restaurant]!!.first { it.client == event.client && it is BookEvent } as BookEvent
                 currentGuests -= initialBookingEvent.numberOfGuests
             }
         }
         return currentGuests
     }
 
-
-
-    fun cancelReservationEvent(client: Client, numberOfGuests: Int? = null, restaurant: Restaurant? = null): Boolean {
-        val restaurant: Restaurant = restaurant ?: findActiveReservation(client) ?: return false
-        events[restaurant]?.add(CancelEvent(client))
+    fun cancelReservationEvent(client: Client, restaurant: Restaurant? = null): Boolean {
+        val activeRestaurant: Restaurant = restaurant ?: findActiveReservation(client) ?: return false
+        events[activeRestaurant]?.add(CancelEvent(client,restaurant?:activeRestaurant))
         return true
     }
 

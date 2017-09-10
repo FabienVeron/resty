@@ -1,6 +1,10 @@
 package resty
 
-class Client(val name: String, val phoneNumber: Int) {
+class Client(val name: String, val phoneNumber: Int) : Observer<CancelEvent> {
+    override fun update(event: CancelEvent) {
+        println("Someone cancelled. I can try to book again")
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is Client) return false
@@ -58,10 +62,10 @@ class BookEvent(client: Client, val numberOfGuests: Int, restaurant: Restaurant)
 
 class CancelEvent(client: Client, restaurant: Restaurant) : ReservationEvent(client, restaurant)
 
-class ReservationCenter(val restaurants: List<Restaurant>) {
+class ReservationCenter(val restaurants: List<Restaurant>) : Observable<CancelEvent>() {
     val events: MutableMap<Restaurant, MutableList<ReservationEvent>> = mutableMapOf()
 
-    fun makeReservation(client: Client, numberOfGuests: Int, restaurant: Restaurant): Boolean {
+    fun makeReservation(client: Client, numberOfGuests: Int, restaurant: Restaurant,callMeBackWhenCancellation : Boolean = false): Boolean {
         if (!restaurants.contains(restaurant))
             throw IllegalArgumentException("%s is not in the restaurants list".format(restaurant))
 
@@ -73,6 +77,9 @@ class ReservationCenter(val restaurants: List<Restaurant>) {
             val restaurantEvents: MutableList<ReservationEvent>? = events[restaurant]
             restaurantEvents?.add(BookEvent(client, numberOfGuests, restaurant))
             return true
+        }
+        else if (callMeBackWhenCancellation) {
+            registerObserver(client)
         }
         return false
     }
@@ -92,7 +99,9 @@ class ReservationCenter(val restaurants: List<Restaurant>) {
 
     fun cancelReservationEvent(client: Client, restaurant: Restaurant? = null): Boolean {
         val activeRestaurant: Restaurant = restaurant ?: findActiveReservation(client) ?: return false
-        events[activeRestaurant]?.add(CancelEvent(client,restaurant?:activeRestaurant))
+        val cancelEvent = CancelEvent(client, restaurant ?: activeRestaurant)
+        events[activeRestaurant]?.add(cancelEvent)
+        notifyObservers(cancelEvent)
         return true
     }
 

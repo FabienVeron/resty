@@ -10,7 +10,6 @@ import org.junit.Test
 
 class ReservationCenterTest {
 
-
     private val r1 = FrenchRestaurant("Ooolaa Petite", 80)
     private val r2 = FrenchRestaurant("Chez Patrick", 60, byob = true)
     private val r3 = Restaurant("Slims", 20)
@@ -72,7 +71,7 @@ class ReservationCenterTest {
 
     @Test
     fun test_cancel_reservation_when_nothing_to_cancel() {
-        
+
     }
 
 }

@@ -70,8 +70,13 @@ class ReservationCenterTest {
     }
 
     @Test
-    fun test_cancel_reservation_when_nothing_to_cancel() {
+    fun test_make_reservation_and_get_callback_when_some_cancellations_happen() {
+        val fabien = Client("Fabien", 123)
+        val virginie = Client("Virginie", 123)
 
+        rc.makeReservation(fabien, 50, r1)
+        assertFalse(rc.makeReservation(virginie, 50, r1,callMeBackWhenCancellation = true))
+        rc.cancelReservationEvent(fabien)
     }
 
 }

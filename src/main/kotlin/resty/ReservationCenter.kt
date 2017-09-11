@@ -1,8 +1,18 @@
 package resty
 
+import rx.Observer
+import rx.subjects.PublishSubject
+import rx.subjects.Subject
+
 class Client(val name: String, val phoneNumber: Int) : Observer<CancelEvent> {
-    override fun update(event: CancelEvent) {
-        println("Someone cancelled. I can try to book again")
+    override fun onError(p0: Throwable?) {
+    }
+
+    override fun onNext(p0: CancelEvent?) {
+        println("Someone cancelled the restaurant. I can call back")
+    }
+
+    override fun onCompleted() {
     }
 
     override fun equals(other: Any?): Boolean {
@@ -62,8 +72,10 @@ class BookEvent(client: Client, val numberOfGuests: Int, restaurant: Restaurant)
 
 class CancelEvent(client: Client, restaurant: Restaurant) : ReservationEvent(client, restaurant)
 
-class ReservationCenter(val restaurants: List<Restaurant>) : Observable<CancelEvent>() {
+class ReservationCenter(val restaurants: List<Restaurant>) {
     val events: MutableMap<Restaurant, MutableList<ReservationEvent>> = mutableMapOf()
+
+    private val cancellations : Subject<CancelEvent,CancelEvent> = PublishSubject.create()
 
     fun makeReservation(client: Client, numberOfGuests: Int, restaurant: Restaurant,callMeBackWhenCancellation : Boolean = false): Boolean {
         if (!restaurants.contains(restaurant))
@@ -79,7 +91,7 @@ class ReservationCenter(val restaurants: List<Restaurant>) : Observable<CancelEv
             return true
         }
         else if (callMeBackWhenCancellation) {
-            registerObserver(client)
+            cancellations.subscribe(client)
         }
         return false
     }
@@ -101,7 +113,7 @@ class ReservationCenter(val restaurants: List<Restaurant>) : Observable<CancelEv
         val activeRestaurant: Restaurant = restaurant ?: findActiveReservation(client) ?: return false
         val cancelEvent = CancelEvent(client, restaurant ?: activeRestaurant)
         events[activeRestaurant]?.add(cancelEvent)
-        notifyObservers(cancelEvent)
+        cancellations.onNext(cancelEvent)
         return true
     }
 
